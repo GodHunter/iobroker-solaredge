@@ -138,10 +138,14 @@ schedule('0 */2 4-22 * *', function(){
                 if(debug) log( 'Die Anlage hat bislang '+ co2 +' '+ unit.unit +' eingespart.' );
                 setState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Gesamt', Number( co2 ), true );
                 setState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Heute', Number( co2 - getState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vortag' ).val ), true );
+                setState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Monat', Number( co2 - getState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vormonat' ).val ), true );
+                setState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Jahr', Number( co2 - getState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vorjahr' ).val ), true );
 
                 if(debug) log( 'Das enspricht einer Anzahl von '+ trees +' Bäumen.' );
                 setState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt', Number( trees ), true );
                 setState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Heute', Number( trees - getState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vortag' ).val ), true );
+                setState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Monat', Number( trees - getState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vormonat' ).val ), true );
+                setState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Jahr', Number( trees - getState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vorjahr' ).val ), true );
             }
         });
 
@@ -218,6 +222,12 @@ function systemdaten(){
                     createState( pfad +'Anlagen.'+ anlage['id'] +'.Umwelt._Berechnung.Baeume_Vortag', 0, {read: true, write: false, type: 'number', unit: 'Stück', desc: 'Berechnungswert Bäume Gestern'});
                     createState( pfad +'Anlagen.'+ anlage['id'] +'.Umwelt._Berechnung.CO2_Vortag', 0, {read: true, write: false, type: 'number', unit: unit.unit, desc: 'Berechnungswert CO2 Gestern'});
 
+                    createState( pfad +'Anlagen.'+ anlage['id'] +'.Umwelt._Berechnung.Baeume_Vormonat', 0, {read: true, write: false, type: 'number', unit: 'Stück', desc: 'Berechnungswert Bäume vorigen Monats'});
+                    createState( pfad +'Anlagen.'+ anlage['id'] +'.Umwelt._Berechnung.CO2_Vormonat', 0, {read: true, write: false, type: 'number', unit: unit.unit, desc: 'Berechnungswert CO2 vorigen Monats'});
+
+                    createState( pfad +'Anlagen.'+ anlage['id'] +'.Umwelt._Berechnung.Baeume_Vorjahr', 0, {read: true, write: false, type: 'number', unit: 'Stück', desc: 'Berechnungswert Bäume voriges Jahr'});
+                    createState( pfad +'Anlagen.'+ anlage['id'] +'.Umwelt._Berechnung.CO2_Vorjahr', 0, {read: true, write: false, type: 'number', unit: unit.unit, desc: 'Berechnungswert CO2 voriges Jahr'});
+
                 });
 
             }
@@ -291,7 +301,7 @@ schedule('0 0 * * *', function () {
     let plants = getActivePlants();
     plants.forEach( function(plant){
 
-        if(debug) log( 'Setze Berechnungsdaten für die Anlage '+ plant );
+        if(debug) log( 'Setze tägliche Berechnungsdaten für die Anlage '+ plant );
 
         setState( pfad +'Anlagen.'+ plant +'.Erzeugung.Max_Gestern', getState( pfad +'Anlagen.'+ plant +'.Erzeugung.Max_Heute' ).val, true );  
         setState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vortag', getState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
@@ -309,6 +319,39 @@ schedule('0 0 * * *', function () {
 
 // Monatliche Jobs
 schedule('0 0 1 * *', function () {
+
+    let plants = getActivePlants();
+    plants.forEach( function(plant){
+
+        if(debug) log( 'Setze monatliche Berechnungsdaten für die Anlage '+ plant );
+
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vormonat', getState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vormonat', getState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Gesamt' ).val, true );
+
+        //Zähler zurücksetzen
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Monat', 0, true );
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Monat', 0, true );
+    
+    });
+
+});
+
+// Jährliche Jobs
+schedule('0 0 1 1 *', function () {
+
+    let plants = getActivePlants();
+    plants.forEach( function(plant){
+
+        if(debug) log( 'Setze jährliche Berechnungsdaten für die Anlage '+ plant );
+
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vorjahr', getState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vorjahr', getState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Gesamt' ).val, true );
+
+        //Zähler zurücksetzen
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt.Baeume.Jahr', 0, true );
+        setState( pfad +'Anlagen.'+ plant +'.Umwelt.CO2.Jahr', 0, true );
+    
+    });
 
 });
 
