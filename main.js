@@ -5,7 +5,7 @@
  * 
 ****/
 
-const pfad      = "0_userdata.0.Systemdaten.Solaranlage2.";
+const pfad      = "0_userdata.0.Systemdaten.Solaranlage.";
 const debug     = false;
 const fetch     = require('request');
 
