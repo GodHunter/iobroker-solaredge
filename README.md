@@ -46,6 +46,16 @@ Enthält alle relevanten Daten zur Umweltbilanz. Momentan werden folgende Werte 
 
 Zur Anlage selbst werden Daten zum Standort und den einzelnen Modulen erfasst. Diese sind selbsterklärend.
 
+# Einschränkungen
+
+Aktuell lässt Solaredge nur 300 Anfragen pro Tag und maximal 3 gleichzeitige Anfragen zu. Daher sind die Abfragen wie folgt eingeteilt:
+
+- Aktuelle Leistung: Alle 5 Minuten zwischen 4:00 Uhr - 22:00 Uhr ( */5 4-22 * * * ) 216 Anfragen pro Tag
+- Energieertrag: Alle 15 Minuten zwischen 4:00 Uhr - 22:00 Uhr ( */15 4-22 * * * ) 72 Anfragen pro Tag
+- Umweltbilanz: Alle 2 Stunden zwischen 4:00 Uhr - 22:00 Uhr ( 0 */2 4-22 * * ) 9 Anfragen pro Tag
+
+Insgesamt also 297 Anfragen pro Tag. Damit kommt man gut hin, die Werte lassen sich im Script aber natürlich anpassen.
+
 # Support
 
 Wenn euch meine Arbeit gefällt, würde ich mich über eine Spende auf Ko-Fi freuen. 
