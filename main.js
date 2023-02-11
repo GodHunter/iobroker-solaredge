@@ -56,12 +56,12 @@ schedule('*/15 * * * *', function(){
 
     if( checkStates( pfad +'Konfiguration.Einheit' ) === false ) return true;
 
-    if( apikey !== 0 && siteid != 0 ){
+    var Zeit = getTime();
+    const apikey    = getState( pfad +'Konfiguration.API-Key' ).val;
+    const siteid    = getState( pfad +'Konfiguration.SiteID' ).val;
+    const unit      = getUnits( getState( pfad +'Konfiguration.Einheit' ).val );
 
-        var Zeit = getTime();
-        const apikey    = getState( pfad +'Konfiguration.API-Key' ).val;
-        const siteid    = getState( pfad +'Konfiguration.SiteID' ).val;
-        const unit      = getUnits( getState( pfad +'Konfiguration.Einheit' ).val );
+    if( apikey !== 0 && siteid != 0 ){
 
         let url = new Object();
         
