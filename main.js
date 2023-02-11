@@ -11,7 +11,7 @@ const fetch     = require('request');
 /******* ENDE DER KONFIGURATION *******/
 
 // States anlegen
-checkStates( pfad +'Konfiguration.Einheit' );
+checkStates( pfad +'Konfiguration.Einhei' );
 
 //Aktuelle Leistung ermitteln
 schedule('*/10 * * * *', function(){
@@ -56,66 +56,70 @@ schedule('*/15 * * * *', function(){
 
     if( checkStates( pfad +'Konfiguration.Einheit' ) === false ) return true;
 
-    var Zeit = getTime();
-    const apikey    = getState( pfad +'Konfiguration.API-Key' ).val;
-    const siteid    = getState( pfad +'Konfiguration.SiteID' ).val;
-    const unit      = getUnits( getState( pfad +'Konfiguration.Einheit' ).val );
+    if( apikey !== 0 && siteid != 0 ){
 
-    let url = new Object();
-    
-    url['heute']    = "https://monitoringapi.solaredge.com/site/"+ siteid +"/energy?timeUnit=DAY&startDate="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"&endDate="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"&api_key="+ apikey
-    url['monat']    = "https://monitoringapi.solaredge.com/site/"+ siteid +"/energy?timeUnit=MONTH&endDate="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.ltm +"&startDate="+ Zeit.jahr +"-"+ Zeit.monat +"-01&api_key="+ apikey
-    url['jahr']     = "https://monitoringapi.solaredge.com/site/"+ siteid +"/energy?timeUnit=YEAR&endDate="+ Zeit.jahr +"-12-31&startDate="+ Zeit.jahr +"-01-01&api_key="+ apikey
-    url['umwelt']   = "https://monitoringapi.solaredge.com/site/"+ siteid +"/envBenefits?systemUnits="+ unit.api +"&api_key="+ apikey
+        var Zeit = getTime();
+        const apikey    = getState( pfad +'Konfiguration.API-Key' ).val;
+        const siteid    = getState( pfad +'Konfiguration.SiteID' ).val;
+        const unit      = getUnits( getState( pfad +'Konfiguration.Einheit' ).val );
 
-    // Heutige Erzeugung
-    fetch( url.heute , function ( err, state, body ){
-        if (err) log( "Fehler aufgetreten: " + err );
-        else{
-            var data = JSON.parse( body );
-            data = ( data.energy.values[0].value / 1000 ).toFixed(2);
+        let url = new Object();
+        
+        url['heute']    = "https://monitoringapi.solaredge.com/site/"+ siteid +"/energy?timeUnit=DAY&startDate="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"&endDate="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"&api_key="+ apikey
+        url['monat']    = "https://monitoringapi.solaredge.com/site/"+ siteid +"/energy?timeUnit=MONTH&endDate="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.ltm +"&startDate="+ Zeit.jahr +"-"+ Zeit.monat +"-01&api_key="+ apikey
+        url['jahr']     = "https://monitoringapi.solaredge.com/site/"+ siteid +"/energy?timeUnit=YEAR&endDate="+ Zeit.jahr +"-12-31&startDate="+ Zeit.jahr +"-01-01&api_key="+ apikey
+        url['umwelt']   = "https://monitoringapi.solaredge.com/site/"+ siteid +"/envBenefits?systemUnits="+ unit.api +"&api_key="+ apikey
 
-            setState( pfad +'Erzeugung.Heute', Number( data ), true );
-        }
-    });
+        // Heutige Erzeugung
+        fetch( url.heute , function ( err, state, body ){
+            if (err) log( "Fehler aufgetreten: " + err );
+            else{
+                var data = JSON.parse( body );
+                data = ( data.energy.values[0].value / 1000 ).toFixed(2);
 
-    // Monatliche Erzeugung
-    fetch( url.monat , function ( err, state, body ){
-        if (err) log( "Fehler aufgetreten: " + err );
-        else{
-            var data = JSON.parse( body );
-            data = ( data.energy.values[0].value / 1000 ).toFixed(2);
+                setState( pfad +'Erzeugung.Heute', Number( data ), true );
+            }
+        });
 
-            setState( pfad +'Erzeugung.Monat', Number( data ), true );
-        }
-    });
+        // Monatliche Erzeugung
+        fetch( url.monat , function ( err, state, body ){
+            if (err) log( "Fehler aufgetreten: " + err );
+            else{
+                var data = JSON.parse( body );
+                data = ( data.energy.values[0].value / 1000 ).toFixed(2);
 
-    // Jährliche Erzeugung
-    fetch( url.jahr , function ( err, state, body ){
-        if (err) log( "Fehler aufgetreten: " + err );
-        else{
-            var data = JSON.parse( body );
-            data = ( data.energy.values[0].value / 1000 ).toFixed(2);
+                setState( pfad +'Erzeugung.Monat', Number( data ), true );
+            }
+        });
 
-            setState( pfad +'Erzeugung.Jahr', Number( data ), true );
-        }
-    });
+        // Jährliche Erzeugung
+        fetch( url.jahr , function ( err, state, body ){
+            if (err) log( "Fehler aufgetreten: " + err );
+            else{
+                var data = JSON.parse( body );
+                data = ( data.energy.values[0].value / 1000 ).toFixed(2);
 
-    // Umwelt
-    fetch( url.umwelt , function ( err, state, body ){
-        if (err) log( "Fehler aufgetreten: " + err );
-        else{
-            var data = JSON.parse( body );
-            var co2     = data.envBenefits.gasEmissionSaved.co2.toFixed(2);
-            var trees   = data.envBenefits.treesPlanted.toFixed(2);
+                setState( pfad +'Erzeugung.Jahr', Number( data ), true );
+            }
+        });
 
-            setState( pfad +'Umwelt.CO2.Gesamt', Number( co2 ), true );
-            setState( pfad +'Umwelt.CO2.Heute', Number( co2 - getState( pfad +'Umwelt._Berechnung.CO2_Vortag' ).val ), true );
+        // Umwelt
+        fetch( url.umwelt , function ( err, state, body ){
+            if (err) log( "Fehler aufgetreten: " + err );
+            else{
+                var data = JSON.parse( body );
+                var co2     = data.envBenefits.gasEmissionSaved.co2.toFixed(2);
+                var trees   = data.envBenefits.treesPlanted.toFixed(2);
 
-            setState( pfad +'Umwelt.Baeume.Gesamt', Number( trees ), true );
-            setState( pfad +'Umwelt.Baeume.Heute', Number( trees - getState( pfad +'Umwelt._Berechnung.Baeume_Vortag' ).val ), true );
-        }
-    });
+                setState( pfad +'Umwelt.CO2.Gesamt', Number( co2 ), true );
+                setState( pfad +'Umwelt.CO2.Heute', Number( co2 - getState( pfad +'Umwelt._Berechnung.CO2_Vortag' ).val ), true );
+
+                setState( pfad +'Umwelt.Baeume.Gesamt', Number( trees ), true );
+                setState( pfad +'Umwelt.Baeume.Heute', Number( trees - getState( pfad +'Umwelt._Berechnung.Baeume_Vortag' ).val ), true );
+            }
+        });
+
+    } else log( 'Es wurde kein API Schlüssel / keine Site ID angegeben.', "error" );
 
 })
 
