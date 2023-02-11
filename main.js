@@ -11,7 +11,7 @@ const fetch     = require('request');
 /******* ENDE DER KONFIGURATION *******/
 
 // States anlegen
-checkStates( pfad +'Konfiguration.Einhei' );
+checkStates( pfad +'Konfiguration.Einheit' );
 
 //Aktuelle Leistung ermitteln
 schedule('*/10 * * * *', function(){
