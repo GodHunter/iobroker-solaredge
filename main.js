@@ -116,7 +116,7 @@ schedule('*/15 4-22 * * *', function(){
 });
 
 // Umweltbilanz ermitteln
-schedule('0 */2 4-22 * *', function(){
+schedule('0 4-22/2 * * *', function(){
 
     var Zeit        = getTime();
     const apikey    = getState( pfad +'Konfiguration.APIKey' ).val;
