@@ -539,7 +539,7 @@ function getActivePlants(){
 };
 
 // Tägliche Jobs
-schedule('1 0 * * *', function () {
+schedule('59 23 * * *', function () {
 
     let plants = getActivePlants();
     plants.forEach( function(plant){
