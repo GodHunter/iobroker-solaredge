@@ -150,7 +150,7 @@ schedule('*/5 * * * *', function(){
 
         if( getState( pfad +'.Anlagen.'+ plant +'.Geraete.Speicher' ).val == true ){
 
-            var url = "https://monitoringapi.solaredge.com/site/2712611/storageData?startTime="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"%2000:00:00&endTime="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"%2023:59:59&api_key="+ apikey;
+            var url = "https://monitoringapi.solaredge.com/site/"+ plant +"/storageData?startTime="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"%2000:00:00&endTime="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"%2023:59:59&api_key="+ apikey;
 
             fetch( url , function ( err, state, body ){
             
