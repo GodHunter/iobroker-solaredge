@@ -6,7 +6,7 @@
 ****/
 
 const pfad      = "0_userdata.0.Systemdaten.Solaredge";
-const debug     = false;
+const debug     = true;
 const fetch     = require('request');
 
 /******* ENDE DER KONFIGURATION *******/
@@ -82,7 +82,7 @@ schedule('* * * * *', function(){
 });
 
 //Energieertrag ermitteln
-schedule('*/15 * * * *', function(){
+schedule('*/5 * * * *', function(){
 
     var Zeit        = getTime();
     const apikey    = getState( pfad +'.Konfiguration.APIKey' ).val;
@@ -93,6 +93,17 @@ schedule('*/15 * * * *', function(){
         
         if( debug ) log('Der Energieertrag der Anlage "'+ plant +'" wird verarbeitet.');
         var url = "https://monitoringapi.solaredge.com/site/"+ plant +"/energyDetails?timeUnit=DAY&startTime="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"%2000:00:00&endTime="+ Zeit.jahr +"-"+ Zeit.monat +"-"+ Zeit.tag +"%2023:59:59&api_key="+ apikey;
+
+        // Berechnung durchführen
+        $('state[state.id=*.Energiebilanz.*.Timestamp]').each( function( timestamp ){
+            
+            var dp      = timestamp;
+            
+            if( Zeit.jahr != new Date( getState( timestamp ).val ).getFullYear() ) calc( dp, plant, 'year' );
+            else if( Zeit.monat != ( '0'+ ( new Date( getState( timestamp ).val ).getMonth() +1 ) ).substr(-2) ) calc( dp, plant, 'month' );
+            else if( Zeit.tag != ( '0'+ ( new Date( getState( timestamp ).val ).getDate() ) ).substr(-2) ) calc( dp, plant, 'day' );
+
+        })
 
         fetch( url , function ( err, state, body ){
             if (err) log( "Fehler aufgetreten: " + err );
@@ -110,8 +121,8 @@ schedule('*/15 * * * *', function(){
                     else if( meters.type == "FeedIn" )          dp = "Einspeisung";
                     else if( meters.type == "Consumption" )     dp = "Gesamtverbrauch";
 
-                    if( typeof dp !== 'undefined' ){                        
-                        
+                    if( typeof dp !== 'undefined' ){
+
                         //Heute
                         var production = ( meters.values[0].value / 1000 ).toFixed(2);
                         setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Heute', Number( production ), true );
@@ -128,7 +139,7 @@ schedule('*/15 * * * *', function(){
                         var calc = Number( getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Gesamt_Gestern' ).val ) + Number( production );
                         setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Gesamt', Number( calc ), true );
 
-                    } else log( 'Nicht ausgewertet: '+ meters.type, 'warn' );
+                    } else if ( debug ) log( 'Nicht ausgewertet: '+ meters.type, 'warn' );
 
                 })
             }
@@ -164,7 +175,7 @@ schedule('*/5 * * * *', function(){
                         
                         var storage = data.storageData.batteries[i];
 
-                        if( checkStates( pfad +'.Anlagen.'+ plant +'.Speicher.'+ storage.serialNumber +'.Modellbezeichnung' ) == false ) createStorageData( plant, storage.serialNumber );                            
+                        if( checkStates( pfad +'.Anlagen.'+ plant +'.Speicher.'+ storage.serialNumber +'.Modellbezeichnung' ) == false ) createStorageData( plant, storage.serialNumber );
                         else{
 
                             var telemetries = storage.telemetries.length -1;
@@ -225,7 +236,8 @@ schedule('0 */2 * * *', function(){
         fetch( url , function ( err, state, body ){
             if (err) log( "Fehler aufgetreten: " + err );
             else{
-                var data = JSON.parse( body );
+                
+                var data    = JSON.parse( body );
                 var co2     = data.envBenefits.gasEmissionSaved.co2.toFixed(2);
                 var trees   = data.envBenefits.treesPlanted.toFixed(2);
 
@@ -240,6 +252,7 @@ schedule('0 */2 * * *', function(){
                 setState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Heute', Number( trees - getState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vortag' ).val ), true );
                 setState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Monat', Number( trees - getState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vormonat' ).val ), true );
                 setState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Jahr', Number( trees - getState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vorjahr' ).val ), true );
+                
             }
         });
 
@@ -308,6 +321,7 @@ function systemdaten(){
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Erzeugung._Berechnung.Monat_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Monat erzeugte Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Erzeugung._Berechnung.Jahr_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Jahr erzeugte Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Erzeugung._Berechnung.Gesamt_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Gesamt erzeugte Energie bis gestern.'});
+                    createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Erzeugung._Berechnung.Timestamp', Date.now(), {read: true, write: false, type: 'number', desc: 'Timestamp der letzten Berechnung.'});
 
                     //Datenpunkte für Bezug
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Netzbezug.Jetzt', 0, {read: true, write: false, type: 'number', unit: 'kW', desc: 'Netzbezug Jetzt'});
@@ -319,6 +333,7 @@ function systemdaten(){
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Netzbezug._Berechnung.Monat_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Monat bezogene Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Netzbezug._Berechnung.Jahr_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Jahr bezogene Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Netzbezug._Berechnung.Gesamt_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Gesamt bezogene Energie bis gestern.'});
+                    createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Netzbezug._Berechnung.Timestamp', Date.now(), {read: true, write: false, type: 'number', desc: 'Timestamp der letzten Berechnung.'});
 
                     //Datenpunkte für Direktverbrauch
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Direktverbrauch.Heute', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Heute direkt genutzte Energie'});
@@ -329,6 +344,7 @@ function systemdaten(){
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Direktverbrauch._Berechnung.Monat_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Monat direkt genutzte Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Direktverbrauch._Berechnung.Jahr_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Jahr direkt genutzte Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Direktverbrauch._Berechnung.Gesamt_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Gesamt direkt genutzte Energie bis gestern.'});
+                    createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Direktverbrauch._Berechnung.Timestamp', Date.now(), {read: true, write: false, type: 'number', desc: 'Timestamp der letzten Berechnung.'});
 
                     //Datenpunkte für Einspeisung
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Einspeisung.Jetzt', 0, {read: true, write: false, type: 'number', unit: 'kW', desc: 'Einspeisung Jetzt'});
@@ -340,6 +356,7 @@ function systemdaten(){
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Einspeisung._Berechnung.Monat_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Monat eingespeiste Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Einspeisung._Berechnung.Jahr_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Jahr eingespeiste Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Einspeisung._Berechnung.Gesamt_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Gesamt eingespeiste Energie bis gestern.'});
+                    createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Einspeisung._Berechnung.Timestamp', Date.now(), {read: true, write: false, type: 'number', desc: 'Timestamp der letzten Berechnung.'});
 
                     //Datenpunkte für Gesamtverbrauch
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Gesamtverbrauch.Jetzt', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Aktuell benötigte Energie'});
@@ -351,6 +368,7 @@ function systemdaten(){
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Gesamtverbrauch._Berechnung.Monat_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Monat benötigte Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Gesamtverbrauch._Berechnung.Jahr_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Im Jahr benötigte Energie bis gestern.'});
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Gesamtverbrauch._Berechnung.Gesamt_Gestern', 0, {read: true, write: false, type: 'number', unit: 'kWh', desc: 'Gesamt benötigte Energie bis gestern.'});
+                    createState( pfad +'.Anlagen.'+ anlage['id'] +'.Energiebilanz.Gesamtverbrauch._Berechnung.Timestamp', Date.now(), {read: true, write: false, type: 'number', desc: 'Timestamp der letzten Berechnung.'});
 
                     //Datenpunkte für Benefits
                     createState( pfad +'.Anlagen.'+ anlage['id'] +'.Umwelt.CO2.Gesamt', 0, {read: true, write: false, type: 'number', unit: unit.unit, desc: 'Eingesparte CO2-Emissionen'});
@@ -408,7 +426,7 @@ function checkDevices( plant ){
                     log( 'Energiezähler erkannt.', 'warn' )                    
                     createState( pfad +'.Anlagen.'+ plant +'.Geraete.Energiezaehler', true, {read: true, write: false, type: 'boolean', desc: 'Energiezähler vorhanden oder nicht.'});
 
-                } else setState( pfad +'.Anlagen.'+ plant +'.Geraete.Energiezaehler', true );
+                } else setState( pfad +'.Anlagen.'+ plant +'.Geraete.Energiezaehler', true, true );
 
             } else {
 
@@ -417,7 +435,7 @@ function checkDevices( plant ){
                     log( 'Keinen Energiezähler erkannt.', 'warn' )
                     createState( pfad +'.Anlagen.'+ plant +'.Geraete.Energiezaehler', false, {read: true, write: false, type: 'boolean', desc: 'Energiezähler vorhanden oder nicht.'});
                 
-                } else setState( pfad +'.Anlagen.'+ plant +'.Geraete.Energiezaehler', false );
+                } else setState( pfad +'.Anlagen.'+ plant +'.Geraete.Energiezaehler', false, true );
 
             }
 
@@ -431,7 +449,7 @@ function checkDevices( plant ){
         else{
                 
             var data = JSON.parse( body );
-            if( data.storageData.batteryCount > 0 ) {
+            if( typeof data.storageData.batteryCount !== 'undefined' ) {
                 
                 if( checkStates( pfad +'.Anlagen.'+ plant +'.Geraete.Speicher') == false ){
 
@@ -455,10 +473,6 @@ function checkDevices( plant ){
 
     })
 
-}
-
-function createEnergyCounter( plant ){
-    
 }
 
 function createStorageData( plant, serialnumber ){
@@ -538,77 +552,82 @@ function getActivePlants(){
 
 };
 
-// Tägliche Jobs
-schedule('59 23 * * *', function () {
+function calc( obj, plant, mode ){
 
-    let plants = getActivePlants();
-    plants.forEach( function(plant){
+    var datenpunkte = ["Erzeugung", "Direktverbrauch", "Netzbezug", "Einspeisung", "Gesamtverbrauch"];
 
-        if(debug) log( 'Setze tägliche Berechnungsdaten für die Anlage '+ plant );
+    if( mode == 'day' ){
 
-        setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.Erzeugung.Max_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.Erzeugung.Max_Heute' ).val, true );  
-        setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vortag', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
-        setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vortag', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.CO2.Gesamt' ).val, true );
+        if(debug) log( 'Tägliche Berechnung für die Anlage '+ plant );
 
-        //Monats-, Jahres- und Gesamtstatistiken schreiben
-        var datenpunkte = ["Erzeugung", "Direktverbrauch", "Netzbezug", "Einspeisung", "Gesamtverbrauch"];
-
+        // Berechnung oben genannter Datenpunkte
         datenpunkte.forEach( function( dp ){
-
+            
             setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Monat_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Monat').val, true );
             setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Jahr_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Jahr').val, true );
             setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Gesamt_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Gesamt').val, true );
             setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Heute', 0, true );
 
-        })
+        });
 
-        //Zähler zurücksetzen
-        setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.Erzeugung.Max_Heute', 0, true );
+    } else if( mode == 'month' ){
 
-        //Anlagendaten einlesen
-        systemdaten();
-    
-    });
+        if(debug) log( 'Monatliche Berechnung für die Anlage '+ plant );
 
-});
+        // Berechnung oben genannter Datenpunkte
+        datenpunkte.forEach( function( dp ){
+            
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Monat_Gestern', 0, true );
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Jahr_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Jahr').val, true );
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Gesamt_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Gesamt').val, true );
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Heute', 0, true );
 
-// Monatliche Jobs
-schedule('2 0 1 * *', function () {
+        });
 
-    let plants = getActivePlants();
-    plants.forEach( function(plant){
-
-        if(debug) log( 'Setze monatliche Berechnungsdaten für die Anlage '+ plant );
-
+        // Benefits
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vormonat', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vormonat', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.CO2.Gesamt' ).val, true );
 
-        //Zähler zurücksetzen
+        // Zähler zurücksetzen
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Monat', 0, true );
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt.CO2.Monat', 0, true );
-    
-    });
 
-});
+    } else if( mode == 'year' ){
 
-// Jährliche Jobs
-schedule('3 0 1 1 *', function () {
+        if(debug) log( 'Jährliche Berechnung für die Anlage '+ plant );
 
-    let plants = getActivePlants();
-    plants.forEach( function(plant){
+        // Berechnung oben genannter Datenpunkte
+        datenpunkte.forEach( function( dp ){
+            
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Monat_Gestern', 0, true );
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Jahr_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Jahr').val, true );
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'._Berechnung.Gesamt_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Gesamt').val, true );
+            setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.'+ dp +'.Heute', 0, true );
 
-        if(debug) log( 'Setze jährliche Berechnungsdaten für die Anlage '+ plant );
+        });
 
+        // Benefits
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vorjahr', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vorjahr', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.CO2.Gesamt' ).val, true );
 
-        //Zähler zurücksetzen
+        // Zähler zurücksetzen
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Jahr', 0, true );
         setState( pfad +'.Anlagen.'+ plant +'.Umwelt.CO2.Jahr', 0, true );
-    
-    });
 
-});
+    }
+
+    // Erzeugung Max Werte setzen / zurücksetzen
+    setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.Erzeugung.Max_Gestern', getState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.Erzeugung.Max_Heute' ).val, true );
+    setState( pfad +'.Anlagen.'+ plant +'.Energiebilanz.Erzeugung.Max_Heute', 0, true );
+
+    // Berechngun der Benefits
+    setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.Baeume_Vortag', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.Baeume.Gesamt' ).val, true );
+    setState( pfad +'.Anlagen.'+ plant +'.Umwelt._Berechnung.CO2_Vortag', getState( pfad +'.Anlagen.'+ plant +'.Umwelt.CO2.Gesamt' ).val, true );
+
+    // Zeitstempel setzen
+    setState( obj, Date.now(), true );
+
+}
 
 //Datenpunkte prüfen
 function checkStates( state, type='check' ){
